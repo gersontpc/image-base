@@ -1,0 +1,2 @@
+# image-base
+Distroless | Archless
