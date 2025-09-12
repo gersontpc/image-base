@@ -38,8 +38,6 @@ jobs:
 
       - name: Build image tarballs for each platform
         run: |
-          pwd
-          ls -lha
           mkdir -p frameworks/out
           for FILE in frameworks/*; do
             FILE_NAME=$(basename "$FILE" .yaml)
