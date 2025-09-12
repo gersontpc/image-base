@@ -38,7 +38,7 @@ jobs:
 
       - name: Build image tarballs for each platform
         run: |
-          mkdir -p frameworks/out
+          mkdir out
           for FILE in frameworks/*; do
             FILE_NAME=$(basename "$FILE" .yaml)
             IFS=',' read -ra ARCHS <<< "${{ env.PLATFORMS }}"
@@ -47,7 +47,7 @@ jobs:
                 --arch "$ARCH" \
                 "$FILE" \
                 "${FILE_NAME}-${ARCH}" \
-                "${PWD}/frameworks/out/${FILE_NAME}-${ARCH}.tar"
+                "${PWD}/out/${FILE_NAME}-${ARCH}.tar"
             done
           done
 
