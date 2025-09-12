@@ -45,7 +45,7 @@ jobs:
             for ARCH in "${ARCHS[@]}"; do
               docker run --rm -v ${PWD}:/work -w /work cgr.dev/chainguard/apko build \
                 --arch "$ARCH" \
-                "$FILE" \
+                "/frameworks/${FILE}" \
                 "${FILE_NAME}-${ARCH}" \
                 "${PWD}/out/${FILE_NAME}-${ARCH}.tar"
             done
