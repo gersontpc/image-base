@@ -36,15 +36,6 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Install apko
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y golang
-          git clone https://github.com/chainguard-dev/apko.git
-          cd apko
-          go build -o /usr/local/bin/apko ./cmd/apko
-          apko version
-
       - name: Build image tarballs for each platform
         run: |
           mkdir -p out
@@ -52,7 +43,8 @@ jobs:
             FILE_NAME=$(basename "$FILE" .yaml)
             IFS=',' read -ra ARCHS <<< "${{ env.PLATFORMS }}"
             for ARCH in "${ARCHS[@]}"; do
-              apko build \
+              docker run --rm -v ${PWD}:/work -w /work cgr.dev/chainguard/apko build \
+                --arch "$ARCH" \
                 "$FILE" \
                 "${FILE_NAME}-${ARCH}" \
                 "out/${FILE_NAME}-${ARCH}.tar"
