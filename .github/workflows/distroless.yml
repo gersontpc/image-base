@@ -47,7 +47,7 @@ jobs:
                 --arch "$ARCH" \
                 "$FILE" \
                 "${FILE_NAME}-${ARCH}" \
-                "frameworks/out/${FILE_NAME}-${ARCH}.tar"
+                "${PWD}/frameworks/out/${FILE_NAME}-${ARCH}.tar"
             done
           done
 
