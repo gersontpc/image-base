@@ -38,6 +38,7 @@ jobs:
 
       - name: Build image tarballs for each platform
         run: |
+          ls -lha
           mkdir out
           for FILE in frameworks/*; do
             FILE_NAME=$(basename "$FILE" .yaml)
@@ -45,7 +46,7 @@ jobs:
             for ARCH in "${ARCHS[@]}"; do
               docker run --rm -v ${PWD}:/work -w /work cgr.dev/chainguard/apko build \
                 --arch "$ARCH" \
-                "/frameworks/${FILE}" \
+                "$FILE" \
                 "${FILE_NAME}-${ARCH}" \
                 "${PWD}/out/${FILE_NAME}-${ARCH}.tar"
             done
