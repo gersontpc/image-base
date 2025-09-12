@@ -51,6 +51,7 @@ jobs:
                 "${PWD}/out/${FILE_NAME}-${ARCH}.tar"
             done
           done
+        working-directory: main
 
 
       - name: Load Docker images for each platform
