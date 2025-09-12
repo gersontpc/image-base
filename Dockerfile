@@ -1,0 +1,1 @@
+FROM gersontpc/image-base:multiarch
