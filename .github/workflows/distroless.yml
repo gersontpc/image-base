@@ -38,7 +38,11 @@ jobs:
 
       - name: Install apko
         run: |
-          curl -sSL https://apk.observiq.dev/install.sh | sh
+          sudo apt-get update
+          sudo apt-get install -y golang
+          git clone https://github.com/chainguard-dev/apko.git
+          cd apko
+          go build -o /usr/local/bin/apko ./cmd/apko
           apko version
 
       - name: Build image tarballs for each platform
