@@ -11,16 +11,15 @@ on:
 
 env:
   IMAGE_NAME: ${{ github.repository }}
-  APKO_IMAGE_NAME: wolfi-app
   APKO_BASE: base.yaml
   PLATFORMS: amd64,arm64
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-        working-directory: frameworks
+    # defaults:
+    #   run:
+    #     shell: bash
+    #     working-directory: frameworks
 
     steps:
       - name: Checkout
