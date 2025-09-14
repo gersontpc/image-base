@@ -91,7 +91,19 @@ jobs:
       # - name: Inspect manifest
       #   run: docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:latest
 
-      - name: Scan image
+      - name: Generate image list
+        id: generate_image_list
+        run: |
+          IMAGE_LIST=""
+          for FRAMEWORK_FILE in ./frameworks/*.yaml; do
+            FRAMEWORK=$(basename "$FRAMEWORK_FILE" .yaml)
+            IMAGE_LIST+="${{ env.REGISTRY }}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}"$'\n'
+          done
+          echo "image_list=$IMAGE_LIST" >> $GITHUB_OUTPUT
+
+      - name: Scan images
         uses: anchore/scan-action@v6
         with:
-          image: "${{ env.REGISTRY }}/java17-multiarch:${{ env.HASH_IMAGE }}"
+          images: |
+            ${{ steps.generate_image_list.outputs.image_list }}
+          fail-build: true
