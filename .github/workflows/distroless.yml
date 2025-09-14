@@ -33,8 +33,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker
         uses: docker/setup-docker-action@v4
@@ -79,12 +79,9 @@ jobs:
               "${REGISTRY}/${FRAMEWORK}:latest-arm64" \
               "${REGISTRY}/${FRAMEWORK}:latest-amd64"
 
-            # Anotar as arquiteturas no manifesto
-            echo "Anotando arquiteturas no manifesto para $FRAMEWORK"
-            for ARCH in "${PLATFORMS[@]}"; do
-              docker manifest annotate "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}" \
-                "${REGISTRY}/${FRAMEWORK}:latest-${ARCH}" --os linux --arch "$ARCH"
-            done
+            echo "Anotar as arquiteturas para o manifesto"
+            docker manifest annotate "${REGISTRY}/${FRAMEWORK}-multiarch:latest" "${REGISTRY}/${FRAMEWORK}:latest-amd64" --os linux --arch amd64
+            docker manifest annotate "${REGISTRY}/${FRAMEWORK}-multiarch:latest" "${REGISTRY}/${FRAMEWORK}:latest-arm64" --os linux --arch arm64
 
             # Fazer o push da imagem multi-arquitetura
             echo "Fazendo o push da imagem multi-arquitetura para $FRAMEWORK"
