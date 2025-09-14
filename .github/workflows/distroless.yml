@@ -10,8 +10,8 @@ on:
       - '**.md'
 
 env:
-  IMAGE_NAME: ${{ github.repository }}
-  APKO_BASE: base.yaml
+  IMAGE_TAG: ${{ github.repository }}
+  REGISTRY: gersontpc
   PLATFORMS: amd64,arm64
 jobs:
   build-and-push:
@@ -36,34 +36,6 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Build image tarballs for each platform
-        run: |
-          ls -lha
-          mkdir out
-          for FILE in frameworks/*; do
-            FILE_NAME=$(basename "$FILE" .yaml)
-            IFS=',' read -ra ARCHS <<< "${{ env.PLATFORMS }}"
-            for ARCH in "${ARCHS[@]}"; do
-              docker run --rm -v ${PWD}:/work -w /work cgr.dev/chainguard/apko build \
-                --arch "$ARCH" \
-                "$FILE" \
-                "${FILE_NAME}-${ARCH}" \
-                "${PWD}/out/${FILE_NAME}-${ARCH}.tar"
-            done
-          done
-        working-directory: main
-
-
-      - name: Load Docker images for each platform
-        run: |
-          for FILE in frameworks/*; do
-            FILE_NAME=$(basename "$FILE" .yaml)
-            IFS=',' read -ra ARCHS <<< "${{ env.PLATFORMS }}"
-            for ARCH in "${ARCHS[@]}"; do
-              docker load < "out/${FILE_NAME}-${ARCH}.tar"
-            done
-          done
-
       - name: Set up Docker
         uses: docker/setup-docker-action@v4
         with:
@@ -78,26 +50,51 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Create multi-arch Docker images
+      - name: Set HASH_IMAGE with SHA
         run: |
-          GIT_COMMIT_HASH=$(echo "${{ github.sha }}" | cut -c1-7) # Pega os 7 primeiros caracteres do hash do commit
-          for FILE in frameworks/*; do
-            FILE_NAME=$(basename "$FILE" .yaml)
-            IMAGE_TAG="${FILE_NAME}:multiarch-${GIT_COMMIT_HASH}"
-            IFS=',' read -ra ARCHS <<< "${{ env.PLATFORMS }}"
-            IMAGE_ARGS=""
-            for ARCH in "${ARCHS[@]}"; do
-              IMAGE_ARGS+="out/${FILE_NAME}-${ARCH}.tar "
+          echo "HASH_IMAGE=$(echo $GITHUB_SHA | cut -c1-7)" >> "$GITHUB_ENV"
+
+      - name: Set HASH_IMAGE Output
+        id: set_tag
+        run: echo "image_tag=$HASH_IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Build image tarballs for each platform
+        run: |
+          # Listar os arquivos no diretório frameworks e remover as extensões
+          for FRAMEWORK_FILE in ./frameworks/*.yaml; do
+            FRAMEWORK=$(basename "$FRAMEWORK_FILE" .yaml)
+            echo "Processando framework: $FRAMEWORK"
+
+            # Gerar imagens para cada arquitetura
+            for ARCH in "${PLATFORMS[@]}"; do
+              echo "Gerando imagem para $FRAMEWORK na arquitetura $ARCH"
+              apko build --arch "$ARCH" "$FRAMEWORK_FILE" "${REGISTRY}/${FRAMEWORK}" "${FRAMEWORK}-${ARCH}.tar"
+              docker load < "${FRAMEWORK}-${ARCH}.tar"
             done
-            docker buildx imagetools create \
-              --tag "gersontpc/${IMAGE_TAG}" \
-              $IMAGE_ARGS
+
+            # Criar a lista de manifestos
+            echo "Criando a lista de manifestos para o framework: $FRAMEWORK gerar a imagem multi-arquitetura"
+            docker manifest create "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}" \
+              "${REGISTRY}/${FRAMEWORK}:latest-arm64" \
+              "${REGISTRY}/${FRAMEWORK}:latest-amd64"
+
+            # Anotar as arquiteturas no manifesto
+            echo "Anotando arquiteturas no manifesto para $FRAMEWORK"
+            for ARCH in "${PLATFORMS[@]}"; do
+              docker manifest annotate "${REGISTRY}/${FRAMEWORK}-multiarch:latest" \
+                "${REGISTRY}/${FRAMEWORK}:latest-${ARCH}" --os linux --arch "$ARCH"
+            done
+
+            # Fazer o push da imagem multi-arquitetura
+            echo "Fazendo o push da imagem multi-arquitetura para $FRAMEWORK"
+            docker manifest push "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}"
           done
+        working-directory: main
 
-      - name: Inspect manifest
-        run: docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:latest
+      # - name: Inspect manifest
+      #   run: docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:latest
 
-      - name: Scan image
-        uses: anchore/scan-action@v6
-        with:
-          image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+      # - name: Scan image
+      #   uses: anchore/scan-action@v6
+      #   with:
+      #     image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
