@@ -102,11 +102,24 @@ jobs:
             FRAMEWORK=$(basename "$FRAMEWORK_FILE" .yaml)
             IMAGE_LIST+="${REGISTRY}/${FRAMEWORK}-multiarch:${HASH_IMAGE}"$'\n'
           done
-          # remove possível nova linha final
           IMAGE_LIST=$(printf "%s" "$IMAGE_LIST" | sed '/^$/d')
           echo "image_list<<EOF" >> "$GITHUB_OUTPUT"
           echo "$IMAGE_LIST" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: List generated images
+        id: list_generated_images
+        working-directory: main
+        run: |
+          echo "=== Lista de imagens geradas ==="
+          echo "${{ steps.generate_image_list.outputs.image_list }}" || true
+          echo "=== Detalhes locais (se existirem) ==="
+          # percorre cada linha da lista e mostra docker image ls para cada imagem
+          printf "%s\n" "${{ steps.generate_image_list.outputs.image_list }}" | while IFS= read -r IMAGE; do
+            [ -z "$IMAGE" ] && continue
+            echo "---- $IMAGE ----"
+            docker image ls --format 'table {{.Repository}}\t{{.Tag}}\t{{.ID}}\t{{.Size}}' "$IMAGE" || echo "Imagem não encontrada localmente: $IMAGE"
+          done
 
       - name: Scan images
         uses: anchore/scan-action@v6
