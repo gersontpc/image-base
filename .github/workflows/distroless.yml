@@ -58,22 +58,23 @@ jobs:
         id: set_tag
         run: echo "image_tag=$HASH_IMAGE" >> $GITHUB_OUTPUT
 
-      - name: Build image tarballs for each platform
+      - name: Build image for each platform
         run: |
           # Listar os arquivos no diretório frameworks e remover as extensões
           for FRAMEWORK_FILE in ./frameworks/*.yaml; do
             FRAMEWORK=$(basename "$FRAMEWORK_FILE" .yaml)
             echo "Processando framework: $FRAMEWORK"
 
-            # Gerar imagens para cada arquitetura
+            # Gerar imagens para cada arquitetura usando o container do apko
             for ARCH in "${PLATFORMS[@]}"; do
               echo "Gerando imagem para $FRAMEWORK na arquitetura $ARCH"
-              apko build --arch "$ARCH" "$FRAMEWORK_FILE" "${REGISTRY}/${FRAMEWORK}" "${FRAMEWORK}-${ARCH}.tar"
+              docker run --rm -v "$PWD":/work -w /work cgr.dev/chainguard/apko build \
+                --arch "$ARCH" "$FRAMEWORK_FILE" "${REGISTRY}/${FRAMEWORK}" "${FRAMEWORK}-${ARCH}.tar"
               docker load < "${FRAMEWORK}-${ARCH}.tar"
             done
 
             # Criar a lista de manifestos
-            echo "Criando a lista de manifestos para o framework: $FRAMEWORK gerar a imagem multi-arquitetura"
+            echo "Criando a lista de manifestos para o framework: $FRAMEWORK"
             docker manifest create "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}" \
               "${REGISTRY}/${FRAMEWORK}:latest-arm64" \
               "${REGISTRY}/${FRAMEWORK}:latest-amd64"
@@ -81,13 +82,13 @@ jobs:
             # Anotar as arquiteturas no manifesto
             echo "Anotando arquiteturas no manifesto para $FRAMEWORK"
             for ARCH in "${PLATFORMS[@]}"; do
-              docker manifest annotate "${REGISTRY}/${FRAMEWORK}-multiarch:latest" \
+              docker manifest annotate "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}" \
                 "${REGISTRY}/${FRAMEWORK}:latest-${ARCH}" --os linux --arch "$ARCH"
             done
 
             # Fazer o push da imagem multi-arquitetura
             echo "Fazendo o push da imagem multi-arquitetura para $FRAMEWORK"
-            docker manifest push "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}"
+            docker manifest push "${REGISTRY}/${FRAMEWORK}-multiarch:latest"
           done
         working-directory: main
 
