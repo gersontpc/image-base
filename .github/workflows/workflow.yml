@@ -124,6 +124,6 @@ jobs:
       - name: Scan images
         uses: anchore/scan-action@v6
         with:
-          image: |
+          images: |
             ${{ steps.generate_image_list.outputs.image_list }}
           fail-build: true
