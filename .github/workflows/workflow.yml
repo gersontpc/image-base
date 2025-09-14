@@ -10,7 +10,6 @@ on:
       - '**.md'
   schedule:
     - cron: "0 22 * * *"  # roda todo dia à 00:00 UTC
-
 env:
   IMAGE_TAG: ${{ github.repository }}
   REGISTRY: gersontpc
