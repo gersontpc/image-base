@@ -1,4 +1,4 @@
-include: distroless/wolfi-base.yaml
+include: distroless/image-base.yaml
 
 contents:
   packages:
