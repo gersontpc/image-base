@@ -2,7 +2,7 @@ name: Build & Push Multi-Arch Distroless Image
 
 on:
   schedule:
-    - cron: '6 18 * * *'  # roda todo dia à 00:00 UTC
+    - cron: '5/5 * * * *'  # roda todo dia à 00:00 UTC
   push:
     branches: [main]
     paths-ignore:
@@ -16,7 +16,7 @@ env:
   REGISTRY: gersontpc
   PLATFORMS: amd64,arm64
 jobs:
-  build-and-push:
+  Build-Distroless-and-Multi-Arch:
     runs-on: ubuntu-latest
     # defaults:
     #   run:
