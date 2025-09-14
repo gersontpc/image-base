@@ -13,7 +13,7 @@ on:
 env:
   IMAGE_TAG: ${{ github.repository }}
   REGISTRY: gersontpc
-  PLATFORMS: x86_64,arm64
+  PLATFORMS: amd64,arm64
 jobs:
   Build-Distroless-and-Multi-Arch:
     runs-on: ubuntu-latest
