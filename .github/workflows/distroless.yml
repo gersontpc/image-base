@@ -88,8 +88,8 @@ jobs:
           done
         working-directory: main
 
-      - name: Inspect manifest
-        run: docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:latest
+      # - name: Inspect manifest
+      #   run: docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:latest
 
       - name: Scan image
         uses: anchore/scan-action@v6
