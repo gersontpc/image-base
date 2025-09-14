@@ -88,10 +88,10 @@ jobs:
           done
         working-directory: main
 
-      # - name: Inspect manifest
-      #   run: docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:latest
+      - name: Inspect manifest
+        run: docker buildx imagetools inspect ${{ env.IMAGE_NAME }}:latest
 
-      # - name: Scan image
-      #   uses: anchore/scan-action@v6
-      #   with:
-      #     image: ${{ env.IMAGE_NAME }}:${{ github.sha }}
+      - name: Scan image
+        uses: anchore/scan-action@v6
+        with:
+          image: "${REGISTRY}/java17-multiarch:${{ env.HASH_IMAGE }}"
