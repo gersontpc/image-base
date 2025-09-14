@@ -94,4 +94,4 @@ jobs:
       - name: Scan image
         uses: anchore/scan-action@v6
         with:
-          image: "${REGISTRY}/java17-multiarch:${{ env.HASH_IMAGE }}"
+          image: "${{ env.REGISTRY }}/java17-multiarch:${{ env.HASH_IMAGE }}"
