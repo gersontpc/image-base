@@ -75,11 +75,17 @@ jobs:
 
             # Criar a lista de manifestos
             echo "Criando a lista de manifestos para o framework: $FRAMEWORK"
-            docker buildx imagetools create \
-              --tag "${REGISTRY}/${FRAMEWORK}-base:multiarch" \
-              "${FRAMEWORK}-amd64.tar" \
-              "${FRAMEWORK}-arm64.tar"
+            docker manifest create "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}" \
+              "${REGISTRY}/${FRAMEWORK}:latest-arm64" \
+              "${REGISTRY}/${FRAMEWORK}:latest-amd64"
 
+            echo "Anotar as arquiteturas para o manifesto"
+            docker manifest annotate "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}" "${REGISTRY}/${FRAMEWORK}:latest-amd64" --os linux --arch amd64
+            docker manifest annotate "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}" "${REGISTRY}/${FRAMEWORK}:latest-arm64" --os linux --arch arm64
+
+            # Fazer o push da imagem multi-arquitetura
+            echo "Fazendo o push da imagem multi-arquitetura para $FRAMEWORK"
+            docker manifest push "${REGISTRY}/${FRAMEWORK}-multiarch:${{ env.HASH_IMAGE }}"
           done
         working-directory: main
 
