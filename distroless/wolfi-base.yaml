@@ -6,6 +6,17 @@ contents:
   packages:
     - wolfi-base
 
+# paths:
+#   - path: /app
+#     type: directory
+#     uid: 10000
+#     gid: 10000
+  # - path: /app/ca_bundle.crt
+  #   source: /etc/ssl/certs/ca-certificates.crt
+  #   type: file
+  #   uid: 10000
+  #   gid: 10000
+
 archs:
   - amd64
   - arm64

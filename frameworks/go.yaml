@@ -2,8 +2,8 @@ include: distroless/wolfi-base.yaml
 
 contents:
   packages:
-    - golang
-    - ca-certificates-bundle
+    - wolfi-base
+    - go
 
 work-dir: /app
 
