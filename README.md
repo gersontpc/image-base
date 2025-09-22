@@ -4,6 +4,7 @@ Este material tem caráter experimental, técnico e educacional, e foi elaborado
 
 As abordagens descritas envolvem o uso de imagens mínimas, sem distribuição tradicional (sem shell, package manager ou utilitários de sistema), e a criação de imagens compatíveis com múltiplas arquiteturas como linux/amd64 e linux/arm64, utilizando práticas como manifest lists e OCI standards.
 
+```
 ┌────────────────────────────┐
 │         Container          │ ← Executável isolado com app + dependências
 ├────────────────────────────┤
@@ -23,13 +24,12 @@ As abordagens descritas envolvem o uso de imagens mínimas, sem distribuição t
 ├────────────────────────────┤
 │          Hardware          │ ← CPU, memória, disco, rede (arquitetura física: amd64, arm64, etc)
 └────────────────────────────┘
-
-
+```
 
 
 ## Distroless
 
-[](./img/distroless-logo.svg)
+![](./img/distroless-logo.svg)
 
 "Distroless" images contain only your application and its runtime dependencies. They do not contain package managers, shells or any other programs you would expect to find in a standard Linux distribution.
 
