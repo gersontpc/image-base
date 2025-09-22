@@ -1,8 +1,43 @@
 ## Disclaimer
 
+Este material tem caráter experimental, técnico e educacional, e foi elaborado com o objetivo de explorar os conceitos de containers Distroless e construções multi-arquitetura (Archless) no contexto de builds modernos com Docker, apko e imagens base como Wolfi Linux.
+
+As abordagens descritas envolvem o uso de imagens mínimas, sem distribuição tradicional (sem shell, package manager ou utilitários de sistema), e a criação de imagens compatíveis com múltiplas arquiteturas como linux/amd64 e linux/arm64, utilizando práticas como manifest lists e OCI standards.
+
+┌────────────────────────────┐
+│         Container          │ ← Executável isolado com app + dependências
+├────────────────────────────┤
+│ 'Distroless' Multi-Arch    │ ← Imagem mínima e sem distro, suporta várias arquiteturas (ex: amd64, arm64)
+├────────────────────────────┤
+│            SBOM            │ ← Lista completa dos pacotes e binários presentes (ex: SPDX, CycloneDX)
+├────────────────────────────┤
+│           Layers           │ ← Camadas imutáveis de filesystem (read-only), empilhadas em overlay
+├────────────────────────────┤
+│         Namespaces         │ ← Isolamento de recursos: PID, Mount, UTS, IPC, Network, User
+├────────────────────────────┤
+│          cgroups           │ ← Limitação e contabilidade de recursos (CPU, memória, IO, etc)
+├────────────────────────────┤
+│         containerd         │ ← Runtime que executa e gerencia containers, controlado via CRI (ex: pelo kubelet)
+├────────────────────────────┤
+│      Linux Kernel / OS     │ ← Executa syscalls e coordena namespaces, cgroups e imagens via overlayfs
+├────────────────────────────┤
+│          Hardware          │ ← CPU, memória, disco, rede (arquitetura física: amd64, arm64, etc)
+└────────────────────────────┘
 
 
-## Archless
+
+
+## Distroless
+
+[](./img/distroless-logo.svg)
+
+"Distroless" images contain only your application and its runtime dependencies. They do not contain package managers, shells or any other programs you would expect to find in a standard Linux distribution.
+
+For more information, see this talk [](video).
+
+Since March 2023, Distroless images use oci manifests, if you see errors referencing application/vnd.oci.image.manifest.v1+json or application/vnd.oci.image.index.v1+json, update your container tooling (docker, jib, etc) to latest.
+
+## Multi-arquitetura
 Understand Multi-platform builds (Archless)
 
 A multi-platform build refers to a single build invocation that targets multiple different operating system or CPU architecture combinations. When building images, this lets you create a single image that can run on multiple platforms, such as `linux/amd64`, `linux/arm64`, and `windows/amd64`.
@@ -13,13 +48,6 @@ Multi-platform images have a different structure than single-platform images. Si
 ![](./img/single-vs-multiplatform-image.svg)
 
 When you push a multi-platform image to a registry, the registry stores the manifest list and all the individual manifests. When you pull the image, the registry returns the manifest list, and Docker automatically selects the correct variant based on the host's architecture. For example, if you run a multi-platform image on an ARM-based Raspberry Pi, Docker selects the linux/arm64 variant. If you run the same image on an x86-64 laptop, Docker selects the linux/amd64 variant (if you're using Linux containers).
-
-## Distroless
-"Distroless" images contain only your application and its runtime dependencies. They do not contain package managers, shells or any other programs you would expect to find in a standard Linux distribution.
-
-For more information, see this talk [](video).
-
-Since March 2023, Distroless images use oci manifests, if you see errors referencing application/vnd.oci.image.manifest.v1+json or application/vnd.oci.image.index.v1+json, update your container tooling (docker, jib, etc) to latest.
 
 ## Show me the works
 
