@@ -314,7 +314,7 @@ docker image build -t gersontpc/amazoncorretto-single-arch:21.0.8-alpine3.22 . &
 
 Output:
 ```
-[+] Building 0.0s (5/5) FINISHED                                                                                                                                                                                                       docker:desktop-linux
+[+] Building 0.0s (5/5) FINISHED                                                    docker:desktop-linux
  => [internal] load build definition from Dockerfile                                                0.0s
  => => transferring dockerfile: 74B                                                                 0.0s
  => [internal] load metadata for docker.io/library/amazoncorretto:21.0.8-alpine3.22                 0.0s
