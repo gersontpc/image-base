@@ -1,0 +1,22 @@
+contents:
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  repositories:
+    - https://packages.wolfi.dev/os
+  packages:
+    - openjdk-21
+    - ca-certificates
+    # - bash
+    # - coreutils
+
+work-dir: /app
+
+# entrypoint:
+#   command: java -jar ./app.jar
+
+environment:
+  JAVA_HOME: /usr/lib/jvm/java-21-openjdk
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/jvm/java-21-openjdk/bin
+
+archs:
+  - arm64
