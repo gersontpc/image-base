@@ -121,26 +121,11 @@ contents:
     - https://packages.wolfi.dev/os
   packages:
     - openjdk-21
-    - ca-certificates-bundle
+    - ca-certificates
     # - bash
+    # - coreutils
 
 work-dir: /app
-
-accounts:
-  groups:
-    - groupname: spring
-      gid: 10000
-  users:
-    - username: spring
-      uid: 10000
-      gid: 10000
-  run-as: spring
-
-paths:
-  - path: /app
-    type: directory
-    uid: 10000
-    gid: 10000
 
 # entrypoint:
 #   command: java -jar ./app.jar
@@ -644,10 +629,6 @@ root        73  0.0  0.0   3260  1884 pts/0    R+   05:52   0:00 ps -aux
 ```
 
 ------
-
-
-
-
 
 
 ## Análise das TOP 10 Sistemas Operacionais mais utilizados.
