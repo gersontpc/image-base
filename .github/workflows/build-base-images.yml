@@ -113,11 +113,13 @@ jobs:
             docker load < "${FRAMEWORK}-${OCI_ARCH}.tar"
           done
 
-      - name: Scan image for vulnerabilities
-        uses: anchore/scan-action@v6
+      - name: Scan image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image: "${{ env.REGISTRY }}/${{ matrix.framework }}:latest-amd64"
-          fail-build: true
+          image-ref: "${{ env.REGISTRY }}/${{ matrix.framework }}:latest-amd64"
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
 
       - name: Create & push multi-arch manifest
         env:
