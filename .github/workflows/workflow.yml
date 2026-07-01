@@ -16,6 +16,6 @@ jobs:
     uses: ./.github/workflows/build-base-images.yml
     with:
       registry: gersontpc
-      frameworks: '["java21", "python3", "go", "nodejs"]'
+      frameworks: '["java21", "java25", "python3-13", "python3-14", "go1-25", "go1-26", "nodejs22", "nodejs24"]'
     secrets:
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

@@ -8,9 +8,9 @@ on:
         type: string
         default: gersontpc
       frameworks:
-        description: "JSON array of frameworks to build (must match a file in frameworks/<name>.yaml)"
+        description: "JSON array of frameworks to build (must match a file in frameworks/<name>.yaml). Two supported versions per language."
         type: string
-        default: '["java21", "python3", "go", "nodejs"]'
+        default: '["java21", "java25", "python3-13", "python3-14", "go1-25", "go1-26", "nodejs22", "nodejs24"]'
     secrets:
       DOCKERHUB_TOKEN:
         required: true
@@ -96,34 +96,39 @@ jobs:
           name: melange-repo
           path: melange-repo
 
-      - name: Set image tag
-        run: echo "IMAGE_TAG=$(echo "$GITHUB_SHA" | cut -c1-7)" >> "$GITHUB_ENV"
+      # Image reference: gersontpc/image-base-<framework>, tagged "stable"
+      # (not "latest") plus an immutable <commit-hash>-<timestamp> tag.
+      - name: Set image name and tags
+        env:
+          FRAMEWORK: ${{ matrix.framework }}
+        run: |
+          set -eu
+          echo "IMAGE_NAME=${REGISTRY}/image-base-${FRAMEWORK}" >> "$GITHUB_ENV"
+          echo "COMMIT_TAG=$(echo "$GITHUB_SHA" | cut -c1-7)-$(date -u +%Y%m%d%H%M%S)" >> "$GITHUB_ENV"
 
       # Local-only build (no registry involved) so the image can be scanned
       # before anything is published. apko builds are reproducible, so the
       # digest `apko publish` pushes later is bit-for-bit identical to what
       # gets scanned here.
       - name: Build image for each architecture (local validation)
-        env:
-          FRAMEWORK: ${{ matrix.framework }}
         run: |
           set -eu
           declare -A ARCH_MAP=( [x86_64]=amd64 [aarch64]=arm64 )
           for APKO_ARCH in x86_64 aarch64; do
             OCI_ARCH="${ARCH_MAP[$APKO_ARCH]}"
-            echo "Building ${FRAMEWORK} for ${APKO_ARCH}"
+            echo "Building ${IMAGE_NAME} for ${APKO_ARCH}"
             ./apko build \
               --arch "$APKO_ARCH" \
               --repository-append melange-repo/packages \
               --keyring-append melange-repo/melange.rsa.pub \
-              "frameworks/${FRAMEWORK}.yaml" "${REGISTRY}/${FRAMEWORK}" "${FRAMEWORK}-${OCI_ARCH}.tar"
-            docker load < "${FRAMEWORK}-${OCI_ARCH}.tar"
+              "frameworks/${{ matrix.framework }}.yaml" "${IMAGE_NAME}" "${{ matrix.framework }}-${OCI_ARCH}.tar"
+            docker load < "${{ matrix.framework }}-${OCI_ARCH}.tar"
           done
 
       - name: Scan image for vulnerabilities (Trivy)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: "${{ env.REGISTRY }}/${{ matrix.framework }}:latest-amd64"
+          image-ref: "${{ env.IMAGE_NAME }}:latest-amd64"
           format: table
           severity: CRITICAL,HIGH
           exit-code: "1"
@@ -133,14 +138,12 @@ jobs:
       # unlike `docker manifest create` it never creates separate/visible
       # latest-amd64 / latest-arm64 tags on the registry.
       - name: Publish multi-arch image
-        env:
-          FRAMEWORK: ${{ matrix.framework }}
         run: |
           set -eu
           ./apko publish \
             --arch x86_64,aarch64 \
             --repository-append melange-repo/packages \
             --keyring-append melange-repo/melange.rsa.pub \
-            "frameworks/${FRAMEWORK}.yaml" \
-            "${REGISTRY}/${FRAMEWORK}:${IMAGE_TAG}" \
-            "${REGISTRY}/${FRAMEWORK}:latest"
+            "frameworks/${{ matrix.framework }}.yaml" \
+            "${IMAGE_NAME}:stable" \
+            "${IMAGE_NAME}:${COMMIT_TAG}"

@@ -1,8 +1,7 @@
 include: distroless/image-base.yaml
 contents:
   packages:
-    - nodejs-24
-    - npm
+    - go-1.25
 
 work-dir: /app
 
