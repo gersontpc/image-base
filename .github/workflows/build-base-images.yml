@@ -121,6 +121,17 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"
 
+      # `docker manifest create` resolves its arguments against the registry,
+      # never against locally loaded images - each per-arch image has to be
+      # pushed first, then the manifest list is built on top of those tags.
+      - name: Push per-architecture images
+        env:
+          FRAMEWORK: ${{ matrix.framework }}
+        run: |
+          set -eu
+          docker push "${REGISTRY}/${FRAMEWORK}:latest-amd64"
+          docker push "${REGISTRY}/${FRAMEWORK}:latest-arm64"
+
       - name: Create & push multi-arch manifest
         env:
           FRAMEWORK: ${{ matrix.framework }}
