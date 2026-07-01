@@ -112,14 +112,14 @@ jobs:
           path: melange-repo
 
       # Image reference: gersontpc/image-base-<framework>, tagged "stable"
-      # (not "latest") plus an immutable <commit-hash>-<ddmmyy> tag.
+      # (not "latest") plus an immutable <ddmmaa-hhmm> (UTC) tag.
       - name: Set image name and tags
         env:
           FRAMEWORK: ${{ matrix.framework }}
         run: |
           set -eu
           echo "IMAGE_NAME=${REGISTRY}/image-base-${FRAMEWORK}" >> "$GITHUB_ENV"
-          echo "COMMIT_TAG=$(echo "$GITHUB_SHA" | cut -c1-7)-$(date -u +%d%m%y)" >> "$GITHUB_ENV"
+          echo "TIMESTAMP_TAG=$(date -u +%d%m%y-%H%M)" >> "$GITHUB_ENV"
 
       # Local-only build (no registry involved) so the image can be scanned
       # before anything is published. apko builds are reproducible, so the
@@ -162,4 +162,4 @@ jobs:
             --keyring-append melange-repo/melange.rsa.pub \
             "frameworks/${{ matrix.framework }}.yaml" \
             "${IMAGE_NAME}:stable" \
-            "${IMAGE_NAME}:${COMMIT_TAG}"
+            "${IMAGE_NAME}:${TIMESTAMP_TAG}"
