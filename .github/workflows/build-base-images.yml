@@ -150,3 +150,28 @@ jobs:
             echo "Pushing ${REGISTRY}/${FRAMEWORK}:${TAG}"
             docker manifest push "${REGISTRY}/${FRAMEWORK}:${TAG}"
           done
+
+      # The per-arch tags only exist so `docker manifest create` has something
+      # on the registry to point at. Once the manifest lists (latest, sha) are
+      # pushed and reference their digests, the standalone latest-amd64 /
+      # latest-arm64 tags are removed so Docker Hub only lists the multi-arch
+      # tags. This does not delete the underlying image data, which stays
+      # referenced by the manifest lists.
+      - name: Remove per-architecture staging tags from Docker Hub
+        continue-on-error: true
+        env:
+          FRAMEWORK: ${{ matrix.framework }}
+          DOCKERHUB_USERNAME: ${{ github.actor }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -eu
+          HUB_TOKEN=$(curl -s -H "Content-Type: application/json" \
+            -X POST -d "{\"username\": \"${DOCKERHUB_USERNAME}\", \"password\": \"${DOCKERHUB_TOKEN}\"}" \
+            https://hub.docker.com/v2/users/login/ | jq -r .token)
+          for ARCH_TAG in latest-amd64 latest-arm64; do
+            echo "Removing staging tag ${REGISTRY}/${FRAMEWORK}:${ARCH_TAG} from Docker Hub"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+              -H "Authorization: JWT ${HUB_TOKEN}" \
+              "https://hub.docker.com/v2/repositories/${REGISTRY}/${FRAMEWORK}/tags/${ARCH_TAG}/")
+            echo "  -> HTTP ${HTTP_CODE}"
+          done
