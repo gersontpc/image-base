@@ -76,15 +76,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Set up Docker
-        uses: docker/setup-docker-action@v4
-        with:
-          daemon-config: |
-            {
-              "features": {
-                "containerd-snapshotter": true
-              }
-            }
+      # apko is extracted as a native binary (instead of running it via
+      # `docker run`) so it transparently picks up the credentials that
+      # docker/login-action just wrote to ~/.docker/config.json - no volume
+      # mounts to fake a container HOME needed. Pulling ":latest" here keeps
+      # it on the latest stable apko release.
+      - name: Install apko (latest stable)
+        run: |
+          set -eu
+          docker create --name apko-extract cgr.dev/chainguard/apko:latest
+          docker cp apko-extract:/usr/bin/apko ./apko
+          docker rm apko-extract
+          chmod +x ./apko
+          ./apko version
 
       - name: Download melange repository
         uses: actions/download-artifact@v4
@@ -95,20 +99,23 @@ jobs:
       - name: Set image tag
         run: echo "IMAGE_TAG=$(echo "$GITHUB_SHA" | cut -c1-7)" >> "$GITHUB_ENV"
 
-      - name: Build image for each architecture
+      # Local-only build (no registry involved) so the image can be scanned
+      # before anything is published. apko builds are reproducible, so the
+      # digest `apko publish` pushes later is bit-for-bit identical to what
+      # gets scanned here.
+      - name: Build image for each architecture (local validation)
         env:
           FRAMEWORK: ${{ matrix.framework }}
         run: |
           set -eu
-          # apko/melange arch names (x86_64/aarch64) -> OCI platform arch names (amd64/arm64)
           declare -A ARCH_MAP=( [x86_64]=amd64 [aarch64]=arm64 )
           for APKO_ARCH in x86_64 aarch64; do
             OCI_ARCH="${ARCH_MAP[$APKO_ARCH]}"
-            echo "Building ${FRAMEWORK} for ${APKO_ARCH} (latest stable apko)"
-            docker run --rm -v "$PWD":/work -w /work cgr.dev/chainguard/apko:latest build \
+            echo "Building ${FRAMEWORK} for ${APKO_ARCH}"
+            ./apko build \
               --arch "$APKO_ARCH" \
-              --repository-append /work/melange-repo/packages \
-              --keyring-append /work/melange-repo/melange.rsa.pub \
+              --repository-append melange-repo/packages \
+              --keyring-append melange-repo/melange.rsa.pub \
               "frameworks/${FRAMEWORK}.yaml" "${REGISTRY}/${FRAMEWORK}" "${FRAMEWORK}-${OCI_ARCH}.tar"
             docker load < "${FRAMEWORK}-${OCI_ARCH}.tar"
           done
@@ -121,57 +128,19 @@ jobs:
           severity: CRITICAL,HIGH
           exit-code: "1"
 
-      # `docker manifest create` resolves its arguments against the registry,
-      # never against locally loaded images - each per-arch image has to be
-      # pushed first, then the manifest list is built on top of those tags.
-      - name: Push per-architecture images
+      # Only reached once the scan above passed. `apko publish` builds and
+      # pushes a single multi-arch index in one shot (both tags at once), so
+      # unlike `docker manifest create` it never creates separate/visible
+      # latest-amd64 / latest-arm64 tags on the registry.
+      - name: Publish multi-arch image
         env:
           FRAMEWORK: ${{ matrix.framework }}
         run: |
           set -eu
-          docker push "${REGISTRY}/${FRAMEWORK}:latest-amd64"
-          docker push "${REGISTRY}/${FRAMEWORK}:latest-arm64"
-
-      - name: Create & push multi-arch manifest
-        env:
-          FRAMEWORK: ${{ matrix.framework }}
-        run: |
-          set -eu
-          for TAG in "${IMAGE_TAG}" latest; do
-            docker manifest create "${REGISTRY}/${FRAMEWORK}:${TAG}" \
-              "${REGISTRY}/${FRAMEWORK}:latest-amd64" \
-              "${REGISTRY}/${FRAMEWORK}:latest-arm64"
-
-            docker manifest annotate "${REGISTRY}/${FRAMEWORK}:${TAG}" \
-              "${REGISTRY}/${FRAMEWORK}:latest-amd64" --os linux --arch amd64
-            docker manifest annotate "${REGISTRY}/${FRAMEWORK}:${TAG}" \
-              "${REGISTRY}/${FRAMEWORK}:latest-arm64" --os linux --arch arm64
-
-            echo "Pushing ${REGISTRY}/${FRAMEWORK}:${TAG}"
-            docker manifest push "${REGISTRY}/${FRAMEWORK}:${TAG}"
-          done
-
-      # The per-arch tags only exist so `docker manifest create` has something
-      # on the registry to point at. Once the manifest lists (latest, sha) are
-      # pushed and reference their digests, the standalone latest-amd64 /
-      # latest-arm64 tags are removed so Docker Hub only lists the multi-arch
-      # tags. This does not delete the underlying image data, which stays
-      # referenced by the manifest lists.
-      - name: Remove per-architecture staging tags from Docker Hub
-        continue-on-error: true
-        env:
-          FRAMEWORK: ${{ matrix.framework }}
-          DOCKERHUB_USERNAME: ${{ github.actor }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          set -eu
-          HUB_TOKEN=$(curl -s -H "Content-Type: application/json" \
-            -X POST -d "{\"username\": \"${DOCKERHUB_USERNAME}\", \"password\": \"${DOCKERHUB_TOKEN}\"}" \
-            https://hub.docker.com/v2/users/login/ | jq -r .token)
-          for ARCH_TAG in latest-amd64 latest-arm64; do
-            echo "Removing staging tag ${REGISTRY}/${FRAMEWORK}:${ARCH_TAG} from Docker Hub"
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
-              -H "Authorization: JWT ${HUB_TOKEN}" \
-              "https://hub.docker.com/v2/repositories/${REGISTRY}/${FRAMEWORK}/tags/${ARCH_TAG}/")
-            echo "  -> HTTP ${HTTP_CODE}"
-          done
+          ./apko publish \
+            --arch x86_64,aarch64 \
+            --repository-append melange-repo/packages \
+            --keyring-append melange-repo/melange.rsa.pub \
+            "frameworks/${FRAMEWORK}.yaml" \
+            "${REGISTRY}/${FRAMEWORK}:${IMAGE_TAG}" \
+            "${REGISTRY}/${FRAMEWORK}:latest"
