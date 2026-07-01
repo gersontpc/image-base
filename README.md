@@ -120,7 +120,7 @@ sequenceDiagram
     CI->>DH: docker login
     CI->>CI: extrai o binário do apko de<br/>cgr.dev/chainguard/apko:latest
     CI->>CI: baixa o artifact melange-repo
-    CI->>CI: define nome da imagem e as tags<br/>(stable, hash-curto + timestamp UTC)
+    CI->>CI: define nome da imagem e as tags<br/>(stable, hash-curto + ddmmaa UTC)
 
     rect rgb(240, 240, 240)
         note over CI,APKO: build local, sem tocar no registry
