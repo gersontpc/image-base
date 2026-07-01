@@ -2,23 +2,26 @@
 
 Imagens base **distroless multi-arquitetura** (`amd64`/`arm64`) para **Java, Python, Go, Node.js e .NET** — cada linguagem com **duas versões estáveis/LTS** publicadas em paralelo. Construídas com [apko](https://github.com/chainguard-dev/apko) + [melange](https://github.com/chainguard-dev/melange) (pacotes [Wolfi](https://github.com/wolfi-dev), sem Dockerfile), escaneadas com [Trivy](https://github.com/aquasecurity/trivy) e publicadas no Docker Hub via um workflow reusável do GitHub Actions.
 
+## Índice
+
+- [image-base](#image-base)
+  - [Índice](#índice)
+  - [O que é uma imagem Distroless?](#o-que-é-uma-imagem-distroless)
+  - [Imagens disponíveis](#imagens-disponíveis)
+  - [Como usar](#como-usar)
+  - [Troubleshooting com Ephemeral Container](#troubleshooting-com-ephemeral-container)
+  - [Estrutura do repositório](#estrutura-do-repositório)
+  - [Como as imagens são compostas](#como-as-imagens-são-compostas)
+  - [O pacote `bundle-pem-test` (melange)](#o-pacote-bundle-pem-test-melange)
+  - [Pipeline de CI/CD (GitHub Actions)](#pipeline-de-cicd-github-actions)
+  - [Build local](#build-local)
+
+## O que é uma imagem Distroless?
+
 <p align="center">
   <img src="./img/distroless-logo.svg" alt="Distroless logo" width="220" />
 </p>
 
-## Índice
-
-- [O que é uma imagem Distroless?](#o-que-é-uma-imagem-distroless)
-- [Imagens disponíveis](#imagens-disponíveis)
-- [Como usar](#como-usar)
-- [Troubleshooting com Ephemeral Container](#troubleshooting-com-ephemeral-container)
-- [Estrutura do repositório](#estrutura-do-repositório)
-- [Como as imagens são compostas](#como-as-imagens-são-compostas)
-- [O pacote `bundle-pem-test` (melange)](#o-pacote-bundle-pem-test-melange)
-- [Pipeline de CI/CD (GitHub Actions)](#pipeline-de-cicd-github-actions)
-- [Build local](#build-local)
-
-## O que é uma imagem Distroless?
 
 Imagens "Distroless" contêm apenas o aplicativo e suas dependências de tempo de execução — sem gerenciador de pacotes, shell ou qualquer outra ferramenta que normalmente vem junto de uma distribuição Linux padrão. Restringir o container de produção precisamente ao que a aplicação precisa reduz a superfície de ataque e é uma prática recomendada, principalmente em ambientes produtivos.
 
