@@ -10,7 +10,7 @@ on:
       frameworks:
         description: "JSON array of frameworks to build (must match a file in frameworks/<name>.yaml). Two supported versions per language."
         type: string
-        default: '["java21", "java25", "python3-13", "python3-14", "go1-25", "go1-26", "nodejs22", "nodejs24"]'
+        default: '["java21", "java25", "python3-13", "python3-14", "go1-25", "go1-26", "nodejs22", "nodejs24", "dotnet8", "dotnet10"]'
     secrets:
       DOCKERHUB_TOKEN:
         required: true
