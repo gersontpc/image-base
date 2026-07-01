@@ -1,7 +1,8 @@
 include: distroless/image-base.yaml
 contents:
   packages:
-    - python3
+    - nodejs-24
+    - npm
 
 work-dir: /app
 
@@ -20,6 +21,3 @@ paths:
     type: directory
     uid: 10000
     gid: 10000
-
-# environment:
-#   PYTHONUNBUFFERED: "1"

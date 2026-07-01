@@ -1,9 +1,7 @@
 include: distroless/image-base.yaml
-
 contents:
   packages:
-    - openjdk-17
-    - ca-certificates-bundle
+    - openjdk-21
 
 work-dir: /app
 
@@ -24,5 +22,5 @@ paths:
     gid: 10000
 
 environment:
-  JAVA_HOME: /usr/lib/jvm/java-17-openjdk
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/jvm/java-17-openjdk/bin
+  JAVA_HOME: /usr/lib/jvm/java-21-openjdk
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/jvm/java-21-openjdk/bin

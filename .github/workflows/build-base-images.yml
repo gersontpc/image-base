@@ -1,0 +1,134 @@
+name: Build & Push Base Images (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      registry:
+        description: "Docker Hub namespace/repository prefix the images are pushed to"
+        type: string
+        default: gersontpc
+      frameworks:
+        description: "JSON array of frameworks to build (must match a file in frameworks/<name>.yaml)"
+        type: string
+        default: '["java21", "python3", "go", "nodejs"]'
+    secrets:
+      DOCKERHUB_TOKEN:
+        required: true
+
+env:
+  REGISTRY: ${{ inputs.registry }}
+
+jobs:
+  # Builds the melange/bundle-pem-test.yaml package (bundle.pem apk) once and
+  # shares it with every framework build below via an artifact, so it isn't
+  # rebuilt 4x. Uses an ephemeral signing key: only the public key travels to
+  # the build-push job, just enough for apko to verify the local repository.
+  melange-bundle:
+    name: Build bundle.pem apk with melange
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Generate ephemeral melange signing key
+        working-directory: melange
+        run: |
+          docker run --rm -v "$PWD":/work -w /work cgr.dev/chainguard/melange:latest \
+            keygen melange.rsa
+
+      - name: Build bundle-pem-test package (amd64 + arm64)
+        working-directory: melange
+        run: |
+          docker run --privileged --rm -v "$PWD":/work -w /work cgr.dev/chainguard/melange:latest \
+            build bundle-pem-test.yaml \
+            --arch x86_64,aarch64 \
+            --signing-key melange.rsa
+
+      - name: Upload melange repository
+        uses: actions/upload-artifact@v4
+        with:
+          name: melange-repo
+          path: |
+            melange/packages/
+            melange/melange.rsa.pub
+          retention-days: 1
+
+  build-push:
+    name: Build & push ${{ matrix.framework }}
+    needs: melange-bundle
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        framework: ${{ fromJSON(inputs.frameworks) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ github.actor }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker
+        uses: docker/setup-docker-action@v4
+        with:
+          daemon-config: |
+            {
+              "features": {
+                "containerd-snapshotter": true
+              }
+            }
+
+      - name: Download melange repository
+        uses: actions/download-artifact@v4
+        with:
+          name: melange-repo
+          path: melange-repo
+
+      - name: Set image tag
+        run: echo "IMAGE_TAG=$(echo "$GITHUB_SHA" | cut -c1-7)" >> "$GITHUB_ENV"
+
+      - name: Build image for each architecture
+        env:
+          FRAMEWORK: ${{ matrix.framework }}
+        run: |
+          set -eu
+          # apko/melange arch names (x86_64/aarch64) -> OCI platform arch names (amd64/arm64)
+          declare -A ARCH_MAP=( [x86_64]=amd64 [aarch64]=arm64 )
+          for APKO_ARCH in x86_64 aarch64; do
+            OCI_ARCH="${ARCH_MAP[$APKO_ARCH]}"
+            echo "Building ${FRAMEWORK} for ${APKO_ARCH} (latest stable apko)"
+            docker run --rm -v "$PWD":/work -w /work cgr.dev/chainguard/apko:latest build \
+              --arch "$APKO_ARCH" \
+              --repository-append /work/melange-repo/packages \
+              --keyring-append /work/melange-repo/melange.rsa.pub \
+              "frameworks/${FRAMEWORK}.yaml" "${REGISTRY}/${FRAMEWORK}" "${FRAMEWORK}-${OCI_ARCH}.tar"
+            docker load < "${FRAMEWORK}-${OCI_ARCH}.tar"
+          done
+
+      - name: Scan image for vulnerabilities
+        uses: anchore/scan-action@v6
+        with:
+          image: "${{ env.REGISTRY }}/${{ matrix.framework }}:latest-amd64"
+          fail-build: true
+
+      - name: Create & push multi-arch manifest
+        env:
+          FRAMEWORK: ${{ matrix.framework }}
+        run: |
+          set -eu
+          for TAG in "${IMAGE_TAG}" latest; do
+            docker manifest create "${REGISTRY}/${FRAMEWORK}:${TAG}" \
+              "${REGISTRY}/${FRAMEWORK}:latest-amd64" \
+              "${REGISTRY}/${FRAMEWORK}:latest-arm64"
+
+            docker manifest annotate "${REGISTRY}/${FRAMEWORK}:${TAG}" \
+              "${REGISTRY}/${FRAMEWORK}:latest-amd64" --os linux --arch amd64
+            docker manifest annotate "${REGISTRY}/${FRAMEWORK}:${TAG}" \
+              "${REGISTRY}/${FRAMEWORK}:latest-arm64" --os linux --arch arm64
+
+            echo "Pushing ${REGISTRY}/${FRAMEWORK}:${TAG}"
+            docker manifest push "${REGISTRY}/${FRAMEWORK}:${TAG}"
+          done

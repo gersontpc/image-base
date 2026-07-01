@@ -1,1 +1,0 @@
-FROM gersontpc/java-base21:latest-arm64
