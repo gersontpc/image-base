@@ -24,7 +24,7 @@ jobs:
   # rebuilt 4x. Uses an ephemeral signing key: only the public key travels to
   # the build-push job, just enough for apko to verify the local repository.
   melange-bundle:
-    name: Build bundle.pem apk with melange
+    name: Compile certs with melange
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
