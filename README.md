@@ -105,26 +105,37 @@ kubectl debug -it pod/<nome-do-pod> \
 
 ## Estrutura do repositório
 
-Cada pasta tem uma responsabilidade única: `distroless/` define a base comum, `frameworks/` só adiciona o runtime de cada linguagem em cima dela, `melange/` builda o pacote extra do `bundle.pem`, `container-troubleshooting/` é o toolkit de debug (veja [Troubleshooting com Ephemeral Container](#troubleshooting-com-ephemeral-container)) e `.github/workflows/` é o pipeline. Dentro de `frameworks/`, cada linguagem tem exatamente 2 arquivos — a versão LTS/estável atual e a anterior:
+Cada pasta tem uma responsabilidade única: `distroless/` define a base comum, `frameworks/` só adiciona o runtime de cada linguagem em cima dela (2 arquivos por linguagem — a versão LTS/estável atual e a anterior), `melange/` builda o pacote extra do `bundle.pem`, `container-troubleshooting/` é o toolkit de debug (veja [Troubleshooting com Ephemeral Container](#troubleshooting-com-ephemeral-container)) e `.github/workflows/` é o pipeline:
 
-```mermaid
-flowchart TD
-    ROOT["image-base/"]
+```
+.
+├── .github
+│   └── workflows
+│       ├── build-base-images.yml   # workflow reusável: build + scan + publish
+│       └── workflow.yml            # dispara o pipeline (push/PR/schedule)
+├── container-troubleshooting
+│   ├── Dockerfile                  # toolkit "canivete suíço" p/ ephemeral container
+│   └── README.md
+├── distroless
+│   └── image-base.yaml             # base comum: wolfi-base + ca-certificates-bundle + bundle-pem-test
+├── frameworks
+│   ├── dotnet10.yaml                # dotnet-10-sdk (LTS mais recente)
+│   ├── dotnet8.yaml                 # dotnet-8-sdk (LTS)
+│   ├── go1-25.yaml                  # go-1.25
+│   ├── go1-26.yaml                  # go-1.26 (mais recente)
+│   ├── java21.yaml                  # openjdk-21 (LTS)
+│   ├── java25.yaml                  # openjdk-25 (LTS mais recente)
+│   ├── nodejs22.yaml                # nodejs-22 (LTS em manutenção)
+│   ├── nodejs24.yaml                # nodejs-24 (LTS ativa)
+│   ├── python3-13.yaml               # python-3.13
+│   └── python3-14.yaml               # python-3.14 (mais recente)
+├── melange
+│   └── bundle-pem-test.yaml        # gera o apk com o bundle.pem (Mozilla CA bundle)
+├── .gitignore
+├── Makefile                        # build local (veja Build local)
+└── README.md
 
-    ROOT --> DIST["distroless/<br/>image-base.yaml<br/><small>base comum</small>"]
-    ROOT --> FW["frameworks/<br/><small>2 versões por linguagem</small>"]
-    ROOT --> MEL["melange/<br/>bundle-pem-test.yaml<br/><small>gera o bundle.pem</small>"]
-    ROOT --> TS["container-troubleshooting/<br/>Dockerfile<br/><small>toolkit de debug</small>"]
-    ROOT --> GHA[".github/workflows/"]
-
-    FW --> FWJ["java21.yaml · java25.yaml"]
-    FW --> FWP["python3-13.yaml · python3-14.yaml"]
-    FW --> FWG["go1-25.yaml · go1-26.yaml"]
-    FW --> FWN["nodejs22.yaml · nodejs24.yaml"]
-    FW --> FWD["dotnet8.yaml · dotnet10.yaml"]
-
-    GHA --> W1["workflow.yml<br/><small>dispara o pipeline</small>"]
-    GHA --> W2["build-base-images.yml<br/><small>build + scan + publish</small>"]
+7 directories, 19 files
 ```
 
 ## Como as imagens são compostas
@@ -187,11 +198,18 @@ flowchart TD
     M --> AR[("artifact: melange-repo<br/>apks + chave pública")]
 
     AR --> X{"Job: build-push<br/>(matrix, 10 itens, roda em paralelo)"}
-    X --> J1["java21 / java25"]
-    X --> J2["nodejs22 / nodejs24"]
-    X --> J3["... + python3-13/14,<br/>go1-25/26, dotnet8/10"]
+    X --> J1["java21"]
+    X --> J2["java25"]
+    X --> J3["python3-13"]
+    X --> J4["python3-14"]
+    X --> J5["go1-25"]
+    X --> J6["go1-26"]
+    X --> J7["nodejs22"]
+    X --> J8["nodejs24"]
+    X --> J9["dotnet8"]
+    X --> J10["dotnet10"]
 
-    J1 & J2 & J3 --> DH[("Docker Hub<br/>gersontpc/image-base-&lt;framework&gt;")]
+    J1 & J2 & J3 & J4 & J5 & J6 & J7 & J8 & J9 & J10 --> DH[("Docker Hub<br/>gersontpc/image-base-&lt;framework&gt;")]
 ```
 
 Dentro de cada item da matrix (um framework/versão), a ordem dos passos garante que **o scan de vulnerabilidades roda antes de qualquer push**, e que o multi-arch é publicado num único comando atômico (sem tags soltas do tipo `latest-amd64`/`latest-arm64` ficando visíveis no registry):
