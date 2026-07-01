@@ -54,7 +54,7 @@ Neste repositório isso se traduz em quatro garantias concretas, já padronizada
 | .NET | 8 (LTS) | `dotnet-8-sdk` | `gersontpc/image-base-dotnet8` | `appuser` |
 | .NET | 10 (LTS) | `dotnet-10-sdk` | `gersontpc/image-base-dotnet10` | `appuser` |
 
-Cada imagem publicada tem duas tags: **`stable`** (sempre aponta para o último build que passou no scan de vulnerabilidades) e **`<ddmmaa>-<hhmm>`** (referência imutável de um build específico, ex.: `010726-0452` para 1º de julho de 2026 às 04:52 UTC).
+Cada imagem publicada tem duas tags: **`stable`** (sempre aponta para o último build que passou no scan de vulnerabilidades) e **`<ddmmaa>-<hhmm>`** (referência imutável de um build específico, ex.: `010726-0152` para 1º de julho de 2026 às 01:52 no horário de Brasília, GMT-3).
 
 ## Pré-requisitos
 
@@ -79,7 +79,7 @@ CMD ["node", "server.js"]
 Para fixar num build reprodutível (ex.: pipeline de deploy), use a tag imutável em vez de `stable`:
 
 ```Dockerfile
-FROM gersontpc/image-base-python3-14:010726-0452
+FROM gersontpc/image-base-python3-14:010726-0152
 ```
 
 ## Troubleshooting com Ephemeral Container
@@ -238,7 +238,7 @@ sequenceDiagram
     CI->>DH: docker login
     CI->>CI: extrai o binário do apko de<br/>cgr.dev/chainguard/apko:latest
     CI->>CI: baixa o artifact melange-repo
-    CI->>CI: define nome da imagem e as tags<br/>(stable, ddmmaa-hhmm UTC)
+    CI->>CI: define nome da imagem e as tags<br/>(stable, ddmmaa-hhmm GMT-3)
 
     rect rgb(240, 240, 240)
         note over CI,APKO: build local, sem tocar no registry
