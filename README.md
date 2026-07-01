@@ -1,5 +1,7 @@
 # image-base
 
+[![Build & Push Base Images](https://github.com/gersontpc/image-base/actions/workflows/workflow.yml/badge.svg)](https://github.com/gersontpc/image-base/actions/workflows/workflow.yml)
+
 Imagens base **distroless multi-arquitetura** (`amd64`/`arm64`) para **Java, Python, Go, Node.js e .NET** — cada linguagem com **duas versões estáveis/LTS** publicadas em paralelo. Construídas com [apko](https://github.com/chainguard-dev/apko) + [melange](https://github.com/chainguard-dev/melange) (pacotes [Wolfi](https://github.com/wolfi-dev), sem Dockerfile), escaneadas com [Trivy](https://github.com/aquasecurity/trivy) e publicadas no Docker Hub via um workflow reusável do GitHub Actions.
 
 ## Índice
@@ -8,13 +10,16 @@ Imagens base **distroless multi-arquitetura** (`amd64`/`arm64`) para **Java, Pyt
   - [Índice](#índice)
   - [O que é uma imagem Distroless?](#o-que-é-uma-imagem-distroless)
   - [Imagens disponíveis](#imagens-disponíveis)
+  - [Pré-requisitos](#pré-requisitos)
   - [Como usar](#como-usar)
   - [Troubleshooting com Ephemeral Container](#troubleshooting-com-ephemeral-container)
   - [Estrutura do repositório](#estrutura-do-repositório)
   - [Como as imagens são compostas](#como-as-imagens-são-compostas)
   - [O pacote `bundle-pem-test` (melange)](#o-pacote-bundle-pem-test-melange)
   - [Pipeline de CI/CD (GitHub Actions)](#pipeline-de-cicd-github-actions)
+  - [Configuração do workflow reusável](#configuração-do-workflow-reusável)
   - [Build local](#build-local)
+  - [Conclusão](#conclusão)
 
 ## O que é uma imagem Distroless?
 
@@ -51,6 +56,12 @@ Neste repositório isso se traduz em quatro garantias concretas, já padronizada
 
 Cada imagem publicada tem duas tags: **`stable`** (sempre aponta para o último build que passou no scan de vulnerabilidades) e **`<hash-do-commit>-<ddmmaa>`** (referência imutável de um build específico, ex.: `eff8551-010726` para 1º de julho de 2026, em UTC).
 
+## Pré-requisitos
+
+- **Consumir as imagens:** só um cliente OCI (`docker`, `podman`, `nerdctl`...).
+- **Troubleshooting com Ephemeral Container:** `kubectl` ≥ 1.25 (é quando o recurso saiu de beta) apontando pra um cluster.
+- **Build/CI local:** Docker Engine com suporte a `--privileged` (usado pelo melange) — nada de `apko`/`melange` instalado à parte, o [`Makefile`](Makefile) roda os dois via `docker run`.
+
 ## Como usar
 
 ```bash
@@ -75,7 +86,7 @@ FROM gersontpc/image-base-python3-14:eff8551-010726
 
 Como as imagens deste repositório não têm shell, `kubectl exec -it <pod> -- sh` falha:
 
-```
+```text
 OCI runtime exec failed: exec failed: unable to start container process: exec: "sh": executable file not found in $PATH: unknown
 command terminated with exit code 127
 ```
@@ -110,7 +121,7 @@ kubectl debug -it pod/<nome-do-pod> \
 
 Cada pasta tem uma responsabilidade única: `distroless/` define a base comum, `frameworks/` só adiciona o runtime de cada linguagem em cima dela (2 arquivos por linguagem — a versão LTS/estável atual e a anterior), `melange/` builda o pacote extra do `bundle.pem`, `container-troubleshooting/` é o toolkit de debug (veja [Troubleshooting com Ephemeral Container](#troubleshooting-com-ephemeral-container)) e `.github/workflows/` é o pipeline:
 
-```
+```text
 .
 ├── .github
 │   └── workflows
@@ -255,6 +266,27 @@ Alguns detalhes de design que valem a pena registrar:
 - **QEMU só no job do melange:** o `apko` apenas extrai pacotes `.apk` (não executa nada), então builda `aarch64` num runner `amd64` sem emulação. Já o `melange` **executa** o pipeline do pacote (o `curl` que baixa o bundle da Mozilla) dentro de um sandbox `bwrap` — por isso só esse job precisa do `docker/setup-qemu-action`.
 - **Matrix = push em paralelo:** os 10 frameworks/versões (2 por linguagem — veja [Imagens disponíveis](#imagens-disponíveis)) são itens de uma `strategy.matrix` com `fail-fast: false`, então o GitHub Actions builda/escaneia/publica os dez ao mesmo tempo, e uma falha em um deles não cancela os demais.
 
+## Configuração do workflow reusável
+
+`build-base-images.yml` não depende do `workflow.yml` deste repo — qualquer outro repositório pode chamá-lo diretamente:
+
+```yaml
+jobs:
+  build-images:
+    uses: gersontpc/image-base/.github/workflows/build-base-images.yml@main
+    with:
+      registry: minha-org                    # namespace do Docker Hub
+      frameworks: '["java25", "nodejs24"]'    # subconjunto de frameworks/*.yaml
+    secrets:
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+```
+
+| Nome | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `registry` | input | não (default `gersontpc`) | namespace/prefixo do Docker Hub onde as imagens são publicadas |
+| `frameworks` | input | sim | array JSON com os nomes dos arquivos em `frameworks/*.yaml` a buildar |
+| `DOCKERHUB_TOKEN` | secret | sim | token de acesso do Docker Hub, usado pelo `docker/login-action` |
+
 ## Build local
 
 O [`Makefile`](Makefile) automatiza o build local — melange e apko sempre rodam via `docker run` (não como binário nativo), então funciona em qualquer SO/arquitetura de dev sem precisar instalar nada além do Docker:
@@ -267,3 +299,11 @@ make clean                                                # remove chave e pacot
 ```
 
 `make build` builda o pacote `bundle-pem-test` com o melange (gerando uma chave de assinatura local descartável) e depois usa `apko publish --local`, que carrega a imagem direto no Docker daemon local sem tocar em nenhum registry — é exatamente o que o pipeline de CI faz antes de escanear com o Trivy. O `ARCH` é detectado automaticamente a partir do host (pode ser sobrescrito, ex.: `make build FRAMEWORK=go1-26 ARCH=x86_64`).
+
+## Conclusão
+
+Manter uma imagem base atualizada e escaneada pra 5 linguagens diferentes costuma acabar em um de dois lugares: um Dockerfile artesanal por time/projeto que ninguém revisita depois que funciona uma vez, ou a decisão de aceitar uma imagem genérica de distro completa (com o pacote de ferramentas — e CVEs — que vem junto) só porque é o caminho de menor resistência.
+
+O `image-base` existe pra tirar essa decisão do caminho: uma única fonte de verdade (`frameworks/*.yaml`) cobre as 10 combinações linguagem+versão suportadas, e o pipeline garante que nenhuma imagem chega ao Docker Hub sem passar pelo scan de vulnerabilidades antes — publicar algo com uma CVE `CRITICAL`/`HIGH` conhecida deixa de ser possível por descuido.
+
+Isso não substitui a imagem final da sua aplicação — é o ponto de partida (`FROM gersontpc/image-base-<framework>:stable`) pra não ter que decidir, de novo, quais pacotes tirar de uma imagem Ubuntu/Alpine pra chegar a um resultado parecido.
